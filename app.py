@@ -1,6 +1,7 @@
-from flask import Flask ,render_template,redirect,request
+from flask import Flask ,jsonify,request
 import psycopg2
 from dotenv import load_dotenv
+from flask_cors import CORS
 import os
 
 load_dotenv()
@@ -15,8 +16,8 @@ def get_connection():
         password=os.getenv('password')
     )
 
-@app.route('/')
-def index():
+@app.route('/api/tasks',methods=['GET'])
+def get_task():
     conn=get_connection()
     cur=conn.cursor()
     cur.execute("Create table if not exists task(id SERIAL PRIMARY KEY,task TEXT NOT NULL,done BOOLEAN DEFAULT FALSE)")
@@ -24,4 +25,27 @@ def index():
     tasks=cur.fetchall()
     cur.close()
     conn.close()
-    return render_template()
+    
+    result=[{"id":t[1],"task":t[2],"done":t[3]}
+            for t in tasks
+            ]
+    return jsonify(request)
+
+app.route('/api/tasks',methods=['POST'])
+def add_task():
+    data=request.get_json()
+    task=data.get("task")
+    
+    conn=get_connection()
+    cur=conn.cursor()
+    cur.execute("INSERT INTO tasks (task) VALUES (%s)",(task,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"message":"Task added"}),201
+
+@app.route('/api/tasks/<int:task_id>',methods=['PUT'])
+def complete_task(task_id):
+    conn=get_connection()
+    cur=conn
