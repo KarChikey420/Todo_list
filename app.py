@@ -48,4 +48,25 @@ def add_task():
 @app.route('/api/tasks/<int:task_id>',methods=['PUT'])
 def complete_task(task_id):
     conn=get_connection()
-    cur=conn
+    cur=conn.cursor()
+    cur.execute("UPDATE task SET done=TURE WHERE id =%s",(task_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"message":"Task completed"}) 
+
+@app.route('/api/tasks/<int:task_id>',metods=['DELETE'])
+def delete_data(task_id):
+    conn=get_connection()
+    cur=conn.cursor()
+    cur.execute("DELETE FROM task WHERE id=%s",(task_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"message":"Task deleted"})
+
+if __name__=="__main__":
+    app.run(debug=True)
+    
