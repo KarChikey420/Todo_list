@@ -9,7 +9,6 @@ load_dotenv()
 app=Flask(__name__)
 CORS(app)
 
-
 def get_connection():
     conn=psycopg2.connect(
         host=os.getenv('host'),
@@ -18,6 +17,23 @@ def get_connection():
         password=os.getenv('password')
     )
     return conn
+
+def initialize_db():
+    conn=get_connection()
+    cur=conn.cursor()
+    
+    cur.execute('''CREATE TABLE IF NOT EXISTS users
+                            (id INTEGER PRIMARY KEY,
+                             username TEXT UNIQUE NOT NULL,
+                             password TEXT NOT NULL)''')
+    cur.execute('''CREATE TABLE IF NOT EXIST tasks
+                    (id INTEGER PRIMARY KEY,
+                     task TEXT NOT NULL,
+                     done BOOLEAN DEFAULT FALSE
+                     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
+    conn.commit()
+    cur.close()
+    conn.close()
 
 @app.route('/api/tasks',methods=['GET'])
 def get_task():
@@ -42,7 +58,6 @@ def add_task():
     
     conn=get_connection()
     cur=conn.cursor()
-    cur.execute("Create table if not exists tasks(id SERIAL PRIMARY KEY,task TEXT NOT NULL,done BOOLEAN DEFAULT FALSE)")
     cur.execute("INSERT INTO tasks (task) VALUES (%s)",(task,))
     conn.commit()
     cur.close()
