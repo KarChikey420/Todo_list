@@ -29,13 +29,13 @@ def initialize_db():
     cur=conn.cursor()
     
     cur.execute('''CREATE TABLE IF NOT EXISTS users
-                            (id INTEGER PRIMARY KEY,
+                            (id SERIAL PRIMARY KEY,
                              username TEXT UNIQUE NOT NULL,
                              password TEXT NOT NULL)''')
-    cur.execute('''CREATE TABLE IF NOT EXIST tasks
+    cur.execute('''CREATE TABLE IF NOT EXISTS tasks
                     (id INTEGER PRIMARY KEY,
                      task TEXT NOT NULL,
-                     done BOOLEAN DEFAULT FALSE
+                     done BOOLEAN DEFAULT FALSE,
                      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
     conn.commit()
     cur.close()
@@ -77,7 +77,7 @@ def signup():
     hashed_pw=bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt()).decode('utf-8')
     
     try:
-        cur.execute("INSERT INTO users(username,password) VALUES (%s%s)",(username,hashed_pw))
+        cur.execute("INSERT INTO users(username,password) VALUES (%s,%s)",(username,hashed_pw))
         conn.commit()
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
@@ -93,7 +93,7 @@ def login():
     password=data.get('password')
     
     conn=get_connection()
-    cur=conn.cursor
+    cur=conn.cursor()
     cur.execute('SELECT password FROM users WHERE username=%s',(username,))
     user=cur.fetchone()
     cur.close()
@@ -118,7 +118,7 @@ def get_task(current_user):
     cur.execute("SELECT id FROM users WHERE username =%s",(current_user,))
     user_id=cur.fetchone()[0]
     
-    cur.execute("SELECT * from tasks WHERE user_id=%s ORDER BY id ASC",(user_id))
+    cur.execute("SELECT * from tasks WHERE user_id=%s ORDER BY id ASC",(user_id,))
     tasks=cur.fetchall()
     cur.close()
     conn.close()
@@ -129,24 +129,33 @@ def get_task(current_user):
     return jsonify(result)
 
 @app.route('/api/tasks',methods=['POST'])
-def add_task():
+@token_required
+def add_task(current_user):
     data=request.get_json()
     task=data.get("task")
     
     conn=get_connection()
     cur=conn.cursor()
-    cur.execute("INSERT INTO tasks (task) VALUES (%s)",(task,))
+    cur.execute("SELECT id FROM users WHERE username=%s",(current_user,))
+    user_id=cur.fetchone()[0]
+    
+    cur.execute("INSERT INTO tasks (task,user_id) VALUES (%s,%s) RETURNING id",(task,user_id))
+    new_task_id=cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
     
-    return jsonify({"message":"Task added"}),201
+    return jsonify({"message":"Task added","task_id":new_task_id}),201
 
 @app.route('/api/tasks/<int:task_id>',methods=['PUT'])
-def complete_task(task_id):
+@token_required
+def complete_task(current_user,task_id):
     conn=get_connection()
     cur=conn.cursor()
-    cur.execute("UPDATE tasks SET done=TRUE WHERE id =%s",(task_id,))
+    cur.execute("SELECT id FROM users WHERE username=%s",(current_user,))
+    user_id=cur.fetchone()[0]
+    
+    cur.execute("UPDATE tasks SET done=TRUE WHERE id =%s AND user_id=%s",(task_id,user_id))
     conn.commit()
     cur.close()
     conn.close()
@@ -154,10 +163,14 @@ def complete_task(task_id):
     return jsonify({"message":"Task completed"}) 
 
 @app.route('/api/tasks/<int:task_id>',methods=['DELETE'])
-def delete_data(task_id):
+@token_required
+def delete_data(current_user,task_id):
     conn=get_connection()
     cur=conn.cursor()
-    cur.execute("DELETE FROM tasks WHERE id=%s",(task_id,))
+    cur.execute("SELECT id FROM users WHERE username=%s",(current_user,))
+    user_id=cur.fetchone()[0]
+    
+    cur.execute("DELETE FROM tasks WHERE id=%s and user_id=%s",(task_id,user_id))
     conn.commit()
     cur.close()
     conn.close()
