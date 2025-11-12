@@ -111,10 +111,14 @@ def login():
     return jsonify({'token': token})
 
 @app.route('/api/tasks',methods=['GET'])
-def get_task():
+@token_required
+def get_task(current_user):
     conn=get_connection()
     cur=conn.cursor()
-    cur.execute("Select * from tasks Order by id ASC")
+    cur.execute("SELECT id FROM users WHERE username =%s",(current_user,))
+    user_id=cur.fetchone()[0]
+    
+    cur.execute("SELECT * from tasks WHERE user_id=%s ORDER BY id ASC",(user_id))
     tasks=cur.fetchall()
     cur.close()
     conn.close()
@@ -122,9 +126,7 @@ def get_task():
     result=[{"id":t[0],"task":t[1],"done":t[2]}
             for t in tasks
             ]
-    
     return jsonify(result)
-print("this is done")
 
 @app.route('/api/tasks',methods=['POST'])
 def add_task():
