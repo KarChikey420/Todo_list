@@ -85,7 +85,31 @@ def signup():
     cur.close()
     conn.close()
     return jsonify({'message':'User registered successfully'}),201
+
+@app.route('/api/login',methods=['POST'])
+def login():
+    data=request.get_json()
+    username=data.get('username')
+    password=data.get('password')
     
+    conn=get_connection()
+    cur=conn.cursor
+    cur.execute('SELECT password FROM users WHERE username=%s',(username,))
+    user=cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
+        return jsonify({'message': 'Invalid username or password!'}), 401
+
+    token = jwt.encode(
+        {'username': username, 'exp': datetime.utcnow() + timedelta(hours=2)},
+        app.config['SECRET_KEY'],
+        algorithm="HS256"
+    )
+
+    return jsonify({'token': token})
+
 @app.route('/api/tasks',methods=['GET'])
 def get_task():
     conn=get_connection()
