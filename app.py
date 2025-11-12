@@ -3,6 +3,10 @@ import psycopg2
 from dotenv import load_dotenv
 from flask_cors import CORS
 import os
+import bcrypt
+from functools import wraps
+from datetime import datetime,timedelta
+import jwt
 
 load_dotenv()
 
@@ -34,6 +38,20 @@ def initialize_db():
     conn.commit()
     cur.close()
     conn.close()
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args,**kwargs):
+        token=None
+        
+        if 'Authorization' in request.headers:
+            token=request.headers['Authorization'].split(" ")[1]
+        
+        if not token:
+            return jsonify({'message':"Token is missing"}),401
+        
+        try:
+            data=jwt.decode
 
 @app.route('/api/tasks',methods=['GET'])
 def get_task():
@@ -88,5 +106,6 @@ def delete_data(task_id):
     return jsonify({"message":"Task deleted"})
 
 if __name__=="__main__":
+    initialize_db()
     app.run(debug=True)
     
