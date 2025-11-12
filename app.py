@@ -10,8 +10,10 @@ import jwt
 
 load_dotenv()
 
+
 app=Flask(__name__)
 CORS(app)
+app.config['SECRET_KEY']=os.getenv("SECRET_KEY",'MY_SECRET_KEY')
 
 def get_connection():
     conn=psycopg2.connect(
@@ -51,8 +53,39 @@ def token_required(f):
             return jsonify({'message':"Token is missing"}),401
         
         try:
-            data=jwt.decode
+            data=jwt.decode(token,app.config['SECRET_KEY'],algorithms=['HS256'])
+            current_user = data['username']
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token expired!'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Invalid token!'}), 401
+        return f(current_user,*args,**kwargs)
+    return decorated
 
+@app.route('/api/signup',methods=['POST'])
+def signup():
+    data=request.get_json()
+    username=data.get("username")
+    password=data.get("password")
+    
+    if not username or not password:
+        return jsonify({'message':"username and password are required"}),400
+    
+    conn=get_connection()
+    cur=conn.cursor()
+    
+    hashed_pw=bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt()).decode('utf-8')
+    
+    try:
+        cur.execute("INSERT INTO users(username,password) VALUES (%s%s)",(username,hashed_pw))
+        conn.commit()
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return jsonify({'message':'Username already exists'}),400
+    cur.close()
+    conn.close()
+    return jsonify({'message':'User registered successfully'}),201
+    
 @app.route('/api/tasks',methods=['GET'])
 def get_task():
     conn=get_connection()
