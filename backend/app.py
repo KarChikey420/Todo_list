@@ -33,7 +33,7 @@ def initialize_db():
                              username TEXT UNIQUE NOT NULL,
                              password TEXT NOT NULL)''')
     cur.execute('''CREATE TABLE IF NOT EXISTS tasks
-                    (id INTEGER PRIMARY KEY,
+                    (id SERIAL PRIMARY KEY,
                      task TEXT NOT NULL,
                      done BOOLEAN DEFAULT FALSE,
                      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
