@@ -24,22 +24,22 @@ def get_connection():
     )
     return conn
 
-def initialize_db():
-    conn=get_connection()
-    cur=conn.cursor()
+# def initialize_db():
+#     conn=get_connection()
+#     cur=conn.cursor()
     
-    cur.execute('''CREATE TABLE IF NOT EXISTS users
-                            (id SERIAL PRIMARY KEY,
-                             username TEXT UNIQUE NOT NULL,
-                             password TEXT NOT NULL)''')
-    cur.execute('''CREATE TABLE IF NOT EXISTS tasks
-                    (id SERIAL PRIMARY KEY,
-                     task TEXT NOT NULL,
-                     done BOOLEAN DEFAULT FALSE,
-                     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
-    conn.commit()
-    cur.close()
-    conn.close()
+#     cur.execute('''CREATE TABLE IF NOT EXISTS users
+#                             (id SERIAL PRIMARY KEY,
+#                              username TEXT UNIQUE NOT NULL,
+#                              password TEXT NOT NULL)''')
+#     cur.execute('''CREATE TABLE IF NOT EXISTS tasks
+#                     (id SERIAL PRIMARY KEY,
+#                      task TEXT NOT NULL,
+#                      done BOOLEAN DEFAULT FALSE,
+#                      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
+#     conn.commit()
+#     cur.close()
+#     conn.close()
 
 def token_required(f):
     @wraps(f)
@@ -178,6 +178,6 @@ def delete_data(current_user,task_id):
     return jsonify({"message":"Task deleted"})
 
 if __name__=="__main__":
-    initialize_db()
+    # initialize_db()
     app.run(debug=True)
     

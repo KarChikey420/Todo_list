@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="auth-container" class="container">
+        <h1 class="app-title">Welcome</h1>
+        <p class="app-subtitle">Please login to view your tasks</p>
+        <div class="card">
+            <div class="input-group">
+                <input type="text" id="auth-username" placeholder="Username">
+            </div>
+            <div class="input-group">
+                <input type="password" id="auth-password" placeholder="Password">
+            </div>
+            <div class="auth-buttons">
+                <button onclick="login()" class="btn-primary">Login</button>
+                <button onclick="signup()" class="btn-secondary">Sign Up</button>
+            </div>
+            <p id="auth-message" class="error-msg"></p>
+        </div>
+    </div>
+
+    <div id="app-container" class="container hidden">
+        <h1 class="app-title">My Tasks</h1>
+        <p class="app-subtitle">Keep track of your daily goals</p>
+        <button onclick="logout()" class="logout-link">Logout</button>
+
+        <div class="card">
+            <div class="add-task-area">
+                <input type="text" id="new-task-input" placeholder="What needs to be done?">
+                <button onclick="addTask()" class="btn-add">
+                    <span>+</span> Add
+                </button>
+            </div>
+
+            <div id="task-list" class="task-list">
+                </div>
+
+            <div class="task-footer">
+                <span id="stats-text">0 active · 0 completed</span>
+                <button onclick="clearCompleted()" class="btn-clear">Clear completed</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
