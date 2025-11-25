@@ -24,22 +24,27 @@ def get_connection():
     )
     return conn
 
-# def initialize_db():
-#     conn=get_connection()
-#     cur=conn.cursor()
-    
-#     cur.execute('''CREATE TABLE IF NOT EXISTS users
-#                             (id SERIAL PRIMARY KEY,
-#                              username TEXT UNIQUE NOT NULL,
-#                              password TEXT NOT NULL)''')
-#     cur.execute('''CREATE TABLE IF NOT EXISTS tasks
-#                     (id SERIAL PRIMARY KEY,
-#                      task TEXT NOT NULL,
-#                      done BOOLEAN DEFAULT FALSE,
-#                      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE)''')
-#     conn.commit()
-#     cur.close()
-#     conn.close()
+def initialize_db():
+    try:
+        conn=get_connection()
+        cur=conn.cursor()
+        
+        cur.execute('''CREATE TABLE IF NOT EXISTS users
+                                (id SERIAL PRIMARY KEY,
+                                 username TEXT UNIQUE NOT NULL,
+                                 password TEXT NOT NULL)''')
+        cur.execute('DROP TABLE IF EXISTS tasks CASCADE')
+        cur.execute('''CREATE TABLE tasks
+                        (id SERIAL PRIMARY KEY,
+                         task TEXT NOT NULL,
+                         done BOOLEAN DEFAULT FALSE,
+                         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE)''')
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("Database initialized successfully!")
+    except Exception as e:
+        print(f"Database initialization error: {e}")
 
 def token_required(f):
     @wraps(f)
@@ -64,51 +69,59 @@ def token_required(f):
 
 @app.route('/api/signup',methods=['POST'])
 def signup():
-    data=request.get_json()
-    username=data.get("username")
-    password=data.get("password")
-    
-    if not username or not password:
-        return jsonify({'message':"username and password are required"}),400
-    
-    conn=get_connection()
-    cur=conn.cursor()
-    
-    hashed_pw=bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt()).decode('utf-8')
-    
     try:
-        cur.execute("INSERT INTO users(username,password) VALUES (%s,%s)",(username,hashed_pw))
-        conn.commit()
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
-        return jsonify({'message':'Username already exists'}),400
-    cur.close()
-    conn.close()
-    return jsonify({'message':'User registered successfully'}),201
+        data=request.get_json()
+        username=data.get("username")
+        password=data.get("password")
+        
+        if not username or not password:
+            return jsonify({'message':"username and password are required"}),400
+        
+        conn=get_connection()
+        cur=conn.cursor()
+        
+        hashed_pw=bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt()).decode('utf-8')
+        
+        try:
+            cur.execute("INSERT INTO users(username,password) VALUES (%s,%s)",(username,hashed_pw))
+            conn.commit()
+        except psycopg2.errors.UniqueViolation:
+            conn.rollback()
+            return jsonify({'message':'Username already exists'}),400
+        cur.close()
+        conn.close()
+        return jsonify({'message':'User registered successfully'}),201
+    except Exception as e:
+        print(f"Signup error: {e}")
+        return jsonify({'message':f'Error: {str(e)}'}),500
 
 @app.route('/api/login',methods=['POST'])
 def login():
-    data=request.get_json()
-    username=data.get('username')
-    password=data.get('password')
-    
-    conn=get_connection()
-    cur=conn.cursor()
-    cur.execute('SELECT password FROM users WHERE username=%s',(username,))
-    user=cur.fetchone()
-    cur.close()
-    conn.close()
-    
-    if not user or not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
-        return jsonify({'message': 'Invalid username or password!'}), 401
+    try:
+        data=request.get_json()
+        username=data.get('username')
+        password=data.get('password')
+        
+        conn=get_connection()
+        cur=conn.cursor()
+        cur.execute('SELECT password FROM users WHERE username=%s',(username,))
+        user=cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if not user or not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
+            return jsonify({'message': 'Invalid username or password!'}), 401
 
-    token = jwt.encode(
-        {'username': username, 'exp': datetime.utcnow() + timedelta(hours=2)},
-        app.config['SECRET_KEY'],
-        algorithm="HS256"
-    )
+        token = jwt.encode(
+            {'username': username, 'exp': datetime.utcnow() + timedelta(hours=2)},
+            app.config['SECRET_KEY'],
+            algorithm="HS256"
+        )
 
-    return jsonify({'token': token})
+        return jsonify({'token': token})
+    except Exception as e:
+        print(f"Login error: {e}")
+        return jsonify({'message':f'Error: {str(e)}'}),500
 
 @app.route('/api/tasks',methods=['GET'])
 @token_required
@@ -131,21 +144,25 @@ def get_task(current_user):
 @app.route('/api/tasks',methods=['POST'])
 @token_required
 def add_task(current_user):
-    data=request.get_json()
-    task=data.get("task")
-    
-    conn=get_connection()
-    cur=conn.cursor()
-    cur.execute("SELECT id FROM users WHERE username=%s",(current_user,))
-    user_id=cur.fetchone()[0]
-    
-    cur.execute("INSERT INTO tasks (task,user_id) VALUES (%s,%s) RETURNING id",(task,user_id))
-    new_task_id=cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-    
-    return jsonify({"message":"Task added","task_id":new_task_id}),201
+    try:
+        data=request.get_json()
+        task=data.get("task")
+        
+        conn=get_connection()
+        cur=conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username=%s",(current_user,))
+        user_id=cur.fetchone()[0]
+        
+        cur.execute("INSERT INTO tasks (task, user_id) VALUES (%s, %s) RETURNING id",(task,user_id))
+        new_task_id=cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({"message":"Task added","task_id":new_task_id}),201
+    except Exception as e:
+        print(f"Add task error: {e}")
+        return jsonify({"message":f"Error: {str(e)}"}),500
 
 @app.route('/api/tasks/<int:task_id>',methods=['PUT'])
 @token_required
@@ -177,7 +194,11 @@ def delete_data(current_user,task_id):
     
     return jsonify({"message":"Task deleted"})
 
+@app.route('/')
+def home():
+    return jsonify({"message": "Todo API is running"})
+
 if __name__=="__main__":
-    # initialize_db()
+    initialize_db()
+    print("Starting Flask server...")
     app.run(debug=True)
-    
